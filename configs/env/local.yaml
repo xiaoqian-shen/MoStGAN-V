@@ -1,0 +1,4 @@
+# @package _group_
+
+python_bin: /home/shenx/anaconda3/envs/sgv/bin/python3.9
+project_path: ${hydra:runtime.cwd}

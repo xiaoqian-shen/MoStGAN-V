@@ -1,0 +1,8 @@
+# @package _group_
+
+name: sky_timelapse_${dataset.resolution}
+fps: 25
+motion_map: false
+mask: false
+motion_z_distance: 256
+augpipe: bgc
