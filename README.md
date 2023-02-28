@@ -2,7 +2,7 @@
 
 Official PyTorch implementation of MoStGAN: Video Generation with Temporal Motion Styles
 
-[[paper]]() [[project page]]()
+[[paper]]() [[project page]](https://xiaoqian-shen-projects.on.drv.tw/webpage/mostgan/)
 
 ## Installation
 
