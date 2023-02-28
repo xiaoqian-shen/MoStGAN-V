@@ -1,8 +1,8 @@
-# MoStGAN: Video Generation with Temporal Motion Styles
+# MoStGAN
 
-[CVPR 2023] Official pytorch implementation
+Official PyTorch implementation of MoStGAN: Video Generation with Temporal Motion Styles
 
-[Webpage]() [Paper]()
+[paper]() [project page]()
 
 ## Installation
 
@@ -14,7 +14,7 @@ And also make sure [StyleGAN2-ADA](https://github.com/NVlabs/stylegan2-ada-pytor
 
 ## System requirements
 
-4 32GB V100 is required, training time is approximately 2 days
+4 32GB V100s are required, training time is approximately 2 days
 
 ## Data
 
@@ -53,4 +53,11 @@ src/scripts/calc_metrics.py
 python src/scripts/generate.py --network_pkl /path/to/network-snapshot.pkl --num_videos 25 --as_grids true --save_as_mp4 true --fps 25 --video_len 128 --batch_size 25 --outdir /path/to/output/dir --truncation_psi 0.9
 ```
 
+## Reference
+
+This code is mainly built upon [StyleGAN2-ADA](https://github.com/NVlabs/stylegan2-ada-pytorch) and [StyleGAN-V](https://github.com/universome/stylegan-v) repositories.
+
+Baseline codes are from [MoCoGAN-HD](https://github.com/snap-research/MoCoGAN-HD), [VideoGPT](https://github.com/wilson1yan/VideoGPT), [DIGAN](https://github.com/sihyun-yu/digan), [StyleGAN-V](https://github.com/universome/stylegan-v)
+
 ## Bibtex
+
