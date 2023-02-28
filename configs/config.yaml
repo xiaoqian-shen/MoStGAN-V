@@ -1,6 +1,6 @@
 defaults:
   - model/base.yaml
-  - model: stylegan-v
+  - model: mostgan
 
   # Import dataset common and overwrite it with the custom one
   - dataset/base.yaml

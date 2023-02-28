@@ -18,20 +18,18 @@ slurm_log_dir: ${project_release_dir}
 use_qos: false
 sbatch_args:
   job-name: ${exp_suffix}_${dataset.name}
-  constraint: ${env.slurm_constraint}
   time: "1-0"
   gres: gpu:${num_gpus}
-  cpus-per-task: 5
   mem:
     _target_: src.infra.utils.num_gpus_to_mem
     num_gpus: ${num_gpus}
     mem_per_gpu: 80
-  # mem-per-gpu: 64G
   cpus-per-gpu: 5
+  reservation: A100
+  account: conf-iccv-2023.03.08-elhosemh
   mail-user: xiaoqian.shen@kaust.edu.sa
   mail-type: FAIL
   comment: ${experiment_name}
-  account: conf-cvpr-2022.11.18-elhosemh
 sbatch_args_str:
   _target_: src.infra.utils.cfg_to_args_str
   cfg: ${sbatch_args}

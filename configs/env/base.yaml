@@ -12,4 +12,5 @@ symlinks_to_create:
   - ${env.project_path}/data
 tmp_dir: "/tmp"
 datasets_dir: /ibex/ai/home/shenx/video/data
-slurm_constraint: a100
+slurm_constraint: v100
+mem_per_gpu: 32

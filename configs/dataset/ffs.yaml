@@ -2,6 +2,4 @@
 path: /ibex/ai/home/shenx/video/data/${dataset.name}
 path_for_slurm_job: ${env.datasets_dir}/${dataset.name}
 name: ffs_${dataset.resolution}
-fps: 30
-motion_map: false
-mask: false
+fps: 25

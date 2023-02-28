@@ -33,25 +33,10 @@ def forward_hook(total_feat_out, module):
 
     hook = module.register_forward_hook(hook_fn_forward)
     return hook
-
-def normalize_gradient(net_D, x, **kwargs):
-    """
-                     f
-    f_hat = --------------------
-            || grad_f || + | f |
-    """
-    x.requires_grad_(True)
-    f = net_D(x, **kwargs)
-    grad = torch.autograd.grad(
-        f, [x], torch.ones_like(f), create_graph=True, retain_graph=True)[0]
-    grad_norm = torch.norm(torch.flatten(grad, start_dim=1), p=2, dim=1)
-    grad_norm = grad_norm.view(-1, *[1 for _ in range(len(f.shape) - 1)])
-    f_hat = (f / (grad_norm + torch.abs(f)))
-    return f_hat
 # ----------------------------------------------------------------------------
 
 class StyleGAN2Loss(Loss):
-    def __init__(self, cfg, device, G_mapping, G_synthesis, D, softmask, MAL, augment_pipe=None, G_motion_encoder=None,
+    def __init__(self, cfg, device, G_mapping, G_synthesis, D, augment_pipe=None, G_motion_encoder=None,
                  style_mixing_prob=0.9, r1_gamma=10, pl_batch_shrink=4, pl_decay=0.01, pl_weight=2):
         super().__init__()
 
@@ -68,8 +53,6 @@ class StyleGAN2Loss(Loss):
         self.pl_weight = pl_weight
         self.pl_mean = torch.zeros([], device=device)
         self.G_motion_encoder = G_motion_encoder
-        self.softmask = softmask
-        self.MAL = MAL
         self.pseudo_data = None
         self.count = 0
 
@@ -83,51 +66,27 @@ class StyleGAN2Loss(Loss):
                                          torch.full_like(cutoff, ws.shape[1]))
                     ws[:, cutoff:] = self.G_mapping(torch.randn_like(z), c, skip_w_avg_update=True)[:, cutoff:]
         with misc.ddp_sync(self.G_synthesis, sync):
-            out, motion, sims = self.G_synthesis(ws, t=t, c=c)
-        return out, ws, motion, sims
+            out, sims = self.G_synthesis(ws, t=t, c=c)
+        return out, ws, sims
 
-    def run_D(self, img, c, t, sync, motion=None):
-        if not self.cfg.model.loss_kwargs.get('diff_aug', False):
-            if self.cfg.model.loss_kwargs.get('video_consistent_aug', False):
-                nf, ch, h, w = img.shape
-                f = self.cfg.sampling.num_frames_per_video
-                n = nf // f
-                img = img.view(n, f * ch, h, w)  # [n, f * ch, h, w]
+    def run_D(self, img, c, t, sync):
+        if self.cfg.model.loss_kwargs.get('video_consistent_aug', False):
+            nf, ch, h, w = img.shape
+            f = self.cfg.sampling.num_frames_per_video
+            n = nf // f
+            img = img.view(n, f * ch, h, w)  # [n, f * ch, h, w]
 
-            img = self.augment_pipe(img)  # [n, f * ch, h, w]
+        img = self.augment_pipe(img)  # [n, f * ch, h, w]
 
-            if self.cfg.model.loss_kwargs.get('video_consistent_aug', False):
-                img = img.view(n * f, ch, h, w)  # [n * f, ch, h, w]
-        else:
-            if self.cfg.model.loss_kwargs.get('video_consistent_aug', False):
-                nf, ch, h, w = img.shape
-                f = self.cfg.sampling.num_frames_per_video
-                n = nf // f
-                img = img.view(n, f, ch, h, w)  # [n, f * ch, h, w]
-
-            img = DiffAugment(img)
-
-            if self.cfg.model.loss_kwargs.get('video_consistent_aug', False):
-                img = img.view(n * f, ch, h, w)  # [n * f, ch, h, w]
+        if self.cfg.model.loss_kwargs.get('video_consistent_aug', False):
+            img = img.view(n * f, ch, h, w)  # [n * f, ch, h, w]
 
         with misc.ddp_sync(self.D, sync):
-            outputs = self.D(img, c, t, motion)
+            outputs = self.D(img, c, t)
 
         return outputs
 
-    def adaptive_pseudo_augmentation(self, real_img):
-        # Apply Adaptive Pseudo Augmentation (APA)
-        batch_size = real_img.shape[0]
-        pseudo_flag = torch.ones([batch_size, 1, 1, 1], device=self.device)
-        pseudo_flag = torch.where(torch.rand([batch_size, 1, 1, 1], device=self.device) < self.augment_pipe.p,
-                                  pseudo_flag, torch.zeros_like(pseudo_flag))
-        if torch.allclose(pseudo_flag, torch.zeros_like(pseudo_flag)):
-            return real_img
-        else:
-            assert self.pseudo_data is not None
-            return self.pseudo_data * pseudo_flag + real_img * (1 - pseudo_flag)
-
-    def accumulate_gradients(self, phase, real_img, real_c, real_t, motion_map, mask, gen_z, gen_c, gen_t, sync, gain):
+    def accumulate_gradients(self, phase, real_img, real_c, real_t, gen_z, gen_c, gen_t, sync, gain):
         assert phase in ['Gmain', 'Greg', 'Gboth', 'Dmain', 'Dreg', 'Dboth']
         do_Gmain = (phase in ['Gmain', 'Gboth'])
         do_Dmain = (phase in ['Dmain', 'Dboth'])
@@ -139,14 +98,8 @@ class StyleGAN2Loss(Loss):
         # Gmain: Maximize logits for generated images.
         if do_Gmain:
             with torch.autograd.profiler.record_function('Gmain_forward'):
-                if self.cfg.model.loss_kwargs.get('align_loss', False):
-                    self.feat = []
-                    self.hook = forward_hook(self.feat, self.G_synthesis.module.b128)
-                if self.cfg.model.loss_kwargs.get('motion_loss', False):
-                    self.feat = []
-                    self.hook = forward_hook(self.feat, self.G_synthesis.module.b64.torgb)
-                gen_img, _gen_ws, motion, sims = self.run_G(gen_z, gen_c, gen_t, sync=(sync and not do_Gpl))  # [batch_size * num_frames, c, h, w]
-                D_out_gen = self.run_D(gen_img, gen_c, gen_t, motion=motion, sync=False)  # [batch_size]
+                gen_img, _gen_ws, sims = self.run_G(gen_z, gen_c, gen_t, sync=(sync and not do_Gpl))  # [batch_size * num_frames, c, h, w]
+                D_out_gen = self.run_D(gen_img, gen_c, gen_t, sync=False)  # [batch_size]
                 training_stats.report('Loss/scores/fake', D_out_gen['image_logits'])
                 training_stats.report('Loss/signs/fake', D_out_gen['image_logits'].sign())
                 loss_Gmain = F.softplus(-D_out_gen['image_logits'])  # -log(sigmoid(y))
@@ -156,20 +109,12 @@ class StyleGAN2Loss(Loss):
                     training_stats.report('Loss/G/loss_video', loss_Gmain_video)
                 else:
                     loss_Gmain_video = 0.0  # [1]
-                if motion is None:
-                    motion = _gen_ws
-                # motion.register_hook(lambda g: print(f"[gradient] Mean: {g.mean().item()}. Std: {g.std().item()}",flush=True))
-                
+
                 training_stats.report('Loss/G/loss', loss_Gmain)
-                training_stats.report('Loss/G/ws', _gen_ws.mean())
-                training_stats.report('Loss/G/ms', motion.mean())
 
-                loss_Gmain = loss_Gmain + self.cfg.model.loss_kwargs.get('sim', 0.1) * sims.to(self.device)
+                if self.cfg.model.loss_kwargs.get('sim', 0.1) > 0:
+                    loss_Gmain = loss_Gmain + self.cfg.model.loss_kwargs.get('sim', 0.1) * sims.to(self.device)
                 training_stats.report('Loss/G/loss_div', sims)
-
-                if self.cfg.model.loss_kwargs.get('regulzerizer', False):
-                    motion_regular = motion.square().sum(2).mean(1).sqrt()
-                    loss_Gmain = loss_Gmain + motion_regular
 
             with torch.autograd.profiler.record_function('Gmain_backward'):
                 loss_Gmain.mean().mul(gain).backward()
@@ -180,7 +125,7 @@ class StyleGAN2Loss(Loss):
             with torch.autograd.profiler.record_function('Gpl_forward'):
                 batch_size = gen_z.shape[0] // self.pl_batch_shrink
                 index = torch.randperm(batch_size)
-                gen_img, gen_ws, _, _ = self.run_G(gen_z[index], gen_c[index], gen_t[index],
+                gen_img, gen_ws, _ = self.run_G(gen_z[index], gen_c[index], gen_t[index],
                                                 sync=sync)  # [batch_size * num_frames, c, h, w]
                 pl_noise = torch.randn_like(gen_img) / np.sqrt(gen_img.shape[2] * gen_img.shape[3])
                 with torch.autograd.profiler.record_function('pl_grads'), conv2d_gradfix.no_weight_gradients():
@@ -202,7 +147,7 @@ class StyleGAN2Loss(Loss):
         if do_Dmain:
             with torch.autograd.profiler.record_function('Dgen_forward'):
                 with torch.no_grad():
-                    gen_img, _gen_ws, _, _ = self.run_G(gen_z, gen_c, gen_t,
+                    gen_img, _gen_ws, _ = self.run_G(gen_z, gen_c, gen_t,
                                                      sync=False)  # [batch_size * num_frames, c, h, w]
                 if self.cfg.training.apa:
                     self.pseudo_data = gen_img.detach()
@@ -239,12 +184,6 @@ class StyleGAN2Loss(Loss):
                     real_img_tmp[index] = real_img_mix
                     del real_img_mix;
                     real_img_tmp = real_img_tmp.reshape(-1, *real_img_tmp.shape[2:])  # B*T,C,H,W
-
-                # enable Adaptive Pseudo Augmentation (APA)
-                if self.cfg.training.apa and self.pseudo_data is not None:
-                    real_img_tmp = self.adaptive_pseudo_augmentation(
-                        real_img_tmp) if real_img_tmp is not None else self.adaptive_pseudo_augmentation(real_img)
-                    self.pseudo_data = None
 
                 real_img_tmp = real_img_tmp.requires_grad_(
                     do_Dr1) if real_img_tmp is not None else real_img.requires_grad_(do_Dr1)

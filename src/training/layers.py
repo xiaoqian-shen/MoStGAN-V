@@ -39,26 +39,16 @@ def tensor_modulation_word(weight, styles, normalize: bool = True):
                * styles[:, :, :, c_in : c_in + kw].view(b, n_words, rank, 1, kw, 1) \
                * styles[:, :, :, c_in + kw:].view(b, n_words, rank, 1, 1, kh)
     M = M.sum(dim=2) / np.sqrt(rank) # [b, n_words, c_in, kh, kw]
-
-    # M = styles[:, :, :c_in].view(b, n_words, 1, c_in, 1, 1) \
-    #     * styles[:, :, c_in:c_in + kw].view(b, n_words, 1, 1, kw, 1) \
-    #     * styles[:, :, c_in + kw:].view(b, n_words, 1, 1, 1, kh)
     M = M.view(b, n_words, -1)
 
-    M_transpose = M.transpose(1,2).reshape(-1, c_out)
-    norm_score=torch.norm(M_transpose, p=2, dim=1, keepdim=True).detach()
-    D1_norm=M_transpose.div(norm_score.expand_as(M_transpose) + 1e-6)
-    sim = torch.mean((D1_norm.mm(D1_norm.t()).pow(2)))
-
-    # weight = weight.unsqueeze(0).repeat(b, 1, 1, 1, 1)
     weight = weight.view(b, c_out, -1)  # b, num, c_in * kh * kw
     score = torch.bmm(weight, M.transpose(1, 2)) / np.sqrt(c_in*kw*kh)  # b,c_out,num
 
-    # score_transpose = score.transpose(1,2).reshape(-1, c_out)
-    # norm_score=torch.norm(score_transpose, p=2, dim=1, keepdim=True).detach()
-    # D1_norm=score_transpose.div(norm_score.expand_as(score_transpose) + 1e-6)
+    score_transpose = score.transpose(1,2).reshape(-1, c_out)
+    norm_score=torch.norm(score_transpose, p=2, dim=1, keepdim=True).detach()
+    D1_norm=score_transpose.div(norm_score.expand_as(score_transpose) + 1e-6)
     
-    # sim = torch.mean((D1_norm.mm(D1_norm.t()).pow(2)))
+    sim = torch.mean((D1_norm.mm(D1_norm.t()).pow(2)))
 
     attn = F.softmax(score, -1) # b,c_out,num
     modulation = torch.bmm(attn, M) # b,c_out, c_in + kh + kw
@@ -162,6 +152,16 @@ class MappingNetwork(torch.nn.Module):
 
 
 # ----------------------------------------------------------------------------
+
+class Conv1d(torch.nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv0 = Conv2dLayer(in_channels, out_channels, kernel_size=1, activation='lrelu', bias=False)
+
+    def forward(self, x):
+        x = x.unsqueeze(-1)
+        x = self.conv0(x)
+        return x
 
 @persistence.persistent_class
 class FullyConnectedLayer(torch.nn.Module):

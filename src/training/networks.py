@@ -28,6 +28,7 @@ from training.layers import (
     MappingNetwork,
     EqualLinear,
     tensor_modulation_word,
+    Conv1d,
 )
 
 
@@ -152,7 +153,7 @@ class SynthesisLayer(torch.nn.Module):
         self.bias = torch.nn.Parameter(torch.zeros([out_channels]))
 
         if self.cfg.word_mod and self.word_mod:
-            self.hypernet = FullyConnectedLayer(self.cfg.motion_dim, self.cfg.rank*(in_channels + kernel_size + kernel_size), bias_init=1)
+            self.hypernet = Conv1d(self.cfg.motion_dim, self.cfg.rank*(in_channels + kernel_size + kernel_size))
 
     def forward(self, x, w, c, noise_mode='random', fused_modconv=True, gain=1):
         assert noise_mode in ['random', 'const', 'none']
@@ -163,7 +164,7 @@ class SynthesisLayer(torch.nn.Module):
 
         if self.cfg.word_mod and self.word_mod:
             n_words = c.shape[1]
-            style_m = self.hypernet(c.reshape(-1, self.cfg.motion_dim))  # b,num,in+kh+kw
+            style_m = self.hypernet(c.permute(0,2,1)).squeeze().permute(0,2,1)  # b,num,in+kh+kw
             style_m = style_m.reshape(-1, n_words, self.cfg.rank, style_m.shape[-1]//self.cfg.rank)
         else:
             style_m = None
@@ -232,7 +233,6 @@ class SynthesisBlock(torch.nn.Module):
                  conv_clamp=None,  # Clamp the output of convolution layers to +-X, None = disable clamping.
                  use_fp16=False,  # Use FP16 for this block?
                  word_mod=True,
-                 use_attention=False,
                  fp16_channels_last=False,  # Use channels-last memory format with FP16?
                  cfg={},  # Additional config
                  **layer_kwargs,  # Arguments for SynthesisLayer.
@@ -252,7 +252,6 @@ class SynthesisBlock(torch.nn.Module):
         self.register_buffer('resample_filter', upfirdn2d.setup_filter(resample_filter))
         self.num_conv = 0
         self.num_torgb = 0
-        self.use_attention = use_attention
 
         if in_channels == 0:
             self.input = GenInput(self.cfg, out_channels, motion_v_dim=motion_v_dim)
@@ -270,9 +269,6 @@ class SynthesisBlock(torch.nn.Module):
                                     kernel_size=3, instance_norm=False, cfg=cfg,
                                     **layer_kwargs)
         self.num_conv += 1
-
-        if self.use_attention:
-            self.tsa = TSA(out_channels)
 
         if is_last or architecture == 'skip':
             self.torgb = ToRGBLayer(out_channels, img_channels, w_dim=w_dim,
@@ -320,11 +316,6 @@ class SynthesisBlock(torch.nn.Module):
             sims += sim
             x, sim = self.conv1(x, next(w_iter), next(m_iter), fused_modconv=fused_modconv, **layer_kwargs)
             sims += sim
-
-        # Attention module
-        if self.use_attention:
-            ori_type = x.dtype
-            x = self.tsa(x.to(torch.float32)).to(ori_type)
 
         # ToRGB.
         if img is not None:
@@ -377,16 +368,10 @@ class SynthesisNetwork(torch.nn.Module):
         self.motion_num = self.cfg.motion_num
 
         if self.motion_num > 0:
-            if self.cfg.consistent_motion:
-                self.multimotionmap = torch.nn.Sequential(
-                    FullyConnectedLayer(self.w_dim, self.motion_num * self.w_dim, activation='lrelu'),
-                    FullyConnectedLayer(self.motion_num * self.w_dim, self.motion_num * self.cfg.motion_dim),
-                )
-            else:
-                self.multimotionmap = torch.nn.Sequential(
-                    FullyConnectedLayer(self.motion_v_dim + self.w_dim, self.motion_num * self.w_dim, activation='lrelu'),
-                    FullyConnectedLayer(self.motion_num * self.w_dim, self.motion_num * self.cfg.motion_dim),
-                )
+            self.multimotionmap = torch.nn.Sequential(
+                FullyConnectedLayer(self.motion_v_dim + self.w_dim, self.motion_num * self.w_dim, activation='lrelu'),
+                FullyConnectedLayer(self.motion_num * self.w_dim, self.motion_num * self.cfg.motion_dim),
+            )
 
         self.num_ws = 0
         for res in self.block_resolutions:
@@ -396,7 +381,6 @@ class SynthesisNetwork(torch.nn.Module):
             is_last = (res == self.img_resolution)
             # which block use word modulation
             word_mod = True if str(res) in self.cfg.mod_layers.split(',') else False
-            use_attention = True if str(res) in self.cfg.use_attention.split(',') else False
             block = SynthesisBlock(
                 in_channels,
                 out_channels,
@@ -407,7 +391,6 @@ class SynthesisNetwork(torch.nn.Module):
                 is_last=is_last,
                 use_fp16=use_fp16,
                 word_mod=word_mod,
-                use_attention=use_attention,
                 cfg=cfg,
                 **block_kwargs)
             self.num_ws += block.num_conv
@@ -432,15 +415,10 @@ class SynthesisNetwork(torch.nn.Module):
                 motion_v = motion_info['motion_v']  # [batch_size * num_frames, motion_v_dim]
 
         if self.motion_num > 0:
-            if self.cfg.consistent_motion:
-                motion_words = self.multimotionmap(ws.mean(dim=[0,1]).unsqueeze(0)).reshape(1, self.motion_num, self.cfg.motion_dim)
-                motion = motion_words.unsqueeze(1).repeat(motion_v.shape[0], self.num_ws, 1, 1)
-            else:
-                motion = torch.cat(
-                    [ws.repeat_interleave(t.shape[1], dim=0), motion_v.unsqueeze(1).repeat(1, self.num_ws, 1)],
-                    dim=2).reshape(-1, self.w_dim + self.motion_v_dim)
-                motion = self.multimotionmap(motion).reshape(motion_v.shape[0], self.num_ws, self.motion_num, -1)  # bf,n,m_dim
-                motion_words = motion
+            motion = torch.cat(
+                [ws.repeat_interleave(t.shape[1], dim=0), motion_v.unsqueeze(1).repeat(1, self.num_ws, 1)],
+                dim=2).reshape(-1, self.w_dim + self.motion_v_dim)
+            motion = self.multimotionmap(motion).reshape(motion_v.shape[0], self.num_ws, self.motion_num, -1)  # bf,n,m_dim
         else:  # for baseline ablation
             motion = None
 
@@ -465,7 +443,7 @@ class SynthesisNetwork(torch.nn.Module):
             sims += sim
         sims =  sims / self.num_ws
 
-        return img, motion_words, sims
+        return img, sims
 
 
 # ----------------------------------------------------------------------------
@@ -501,7 +479,7 @@ class Generator(torch.nn.Module):
 
         ws = self.mapping(z, c, truncation_psi=truncation_psi,
                           truncation_cutoff=truncation_cutoff)  # [batch_size, num_ws, w_dim]
-        img, motion, sims = self.synthesis(ws, t=t, c=c, **synthesis_kwargs)  # [batch_size * num_frames, c, h, w]
+        img, sims = self.synthesis(ws, t=t, c=c, **synthesis_kwargs)  # [batch_size * num_frames, c, h, w]
 
         return img
 
@@ -668,7 +646,7 @@ class DiscriminatorEpilogue(torch.nn.Module):
         self.fc = FullyConnectedLayer(in_channels * (resolution ** 2), self.cfg.motion_dim, activation=activation)
         self.out = FullyConnectedLayer(self.cfg.motion_dim, 1 if cmap_dim == 0 else cmap_dim)
 
-    def forward(self, x, img, cmap, motion=None, force_fp32=False):
+    def forward(self, x, img, cmap, force_fp32=False):
         misc.assert_shape(x, [None, self.in_channels, self.resolution, self.resolution])  # [NCHW]
         _ = force_fp32  # unused
         dtype = torch.float32
@@ -687,10 +665,6 @@ class DiscriminatorEpilogue(torch.nn.Module):
 
         x = self.conv(x)
         hidden = self.fc(x.flatten(1))
-        if motion is not None:
-            score = torch.bmm(hidden.unsqueeze(1), motion.repeat_interleave(hidden.shape[0],dim=0).transpose(1,2)) / np.sqrt(hidden.shape[-1]) # bsz, c, num
-            attn = F.softmax(score, -1)
-            hidden = hidden * (1 + torch.bmm(attn, motion.repeat_interleave(hidden.shape[0],dim=0)).squeeze()) # bsz, c, dim
         x = self.out(hidden)  # [batch_size, out_dim]
 
         # Conditioning.
@@ -774,7 +748,7 @@ class Discriminator(torch.nn.Module):
         self.b4 = DiscriminatorEpilogue(channels_dict[4], cmap_dim=cmap_dim, resolution=4, cfg=self.cfg,
                                         **epilogue_kwargs, **common_kwargs)
 
-    def forward(self, img, c, t, motion=None, **block_kwargs):
+    def forward(self, img, c, t, **block_kwargs):
         assert len(img) == t.shape[0] * t.shape[1], f"Wrong shape: {img.shape}, {t.shape}"
         assert t.ndim == 2, f"Wrong shape: {t.shape}"
 
@@ -811,143 +785,10 @@ class Discriminator(torch.nn.Module):
             assert c.shape[1] > 0
         if c.shape[1] > 0:
             cmap = self.mapping(None, c)
-        if not self.cfg.dis_attn:
-            motion = None
-        x, hidden = self.b4(x, img, cmap, motion)
+        x, hidden = self.b4(x, img, cmap)
         x = x.squeeze(1)  # [batch_size]
 
         return {'image_logits': x, 'hidden': hidden}
 
 
 # ---------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------
-@persistence.persistent_class
-class MAL(nn.Module):
-    def __init__(self, batch_size):
-        super().__init__()
-        self.relu = nn.ReLU()
-        self.softmax = nn.Softmax(dim=1)
-        self.bsz = batch_size
-
-    def alignment(self, gradient, target):
-
-        b, c, h, w = gradient.shape
-
-        t = b // self.bsz
-
-        gradient = gradient.reshape(-1, t, *gradient.shape[1:]).permute(0, 2, 1, 3, 4)  # b,c,t,h,w
-        weight = F.adaptive_avg_pool3d(gradient, (t, 1, 1))
-
-        weight_predict = weight * gradient
-
-        predict = self.relu(weight_predict.sum(1))  # sum c -> b,t,h,w
-
-        predict = predict.reshape(self.bsz, t, -1)
-
-        # predict = (predict-torch.min(predict))/torch.max(predict)
-        # target = (target-torch.min(weight))/torch.max(target)
-
-        if t > 1:
-            # for spatial-temporal alignment
-            sim_spa_temp = self.forward_spatial_temporal(predict, target, t)
-
-            # for temporal alignment
-            sim_tempo = self.forward_temporal(predict, target, t)
-
-            # cosine similarity equal to l2-normalized mse
-            loss_spa_temp = (1 - sim_spa_temp).mean()
-            loss_tempo = (1 - sim_tempo).mean()
-        else:
-            loss_spa_temp = 0.0
-            loss_tempo = 0.0
-
-        # for spatial alignment
-        dis_spa = self.forward_spatial(predict, target, t)
-        loss_spa = dis_spa.mean()
-
-        loss_mal = loss_spa_temp + loss_spa + loss_tempo
-
-        return loss_mal
-
-    def forward_spatial_temporal(self, predict, target, t):
-        # target_score = target.reshape(self.bsz, self.t, -1).sum(-1)
-        target_score = target.sum(-1)
-        target_att = self.softmax(target_score)
-        pre_norm = F.normalize(predict, dim=-1)
-        target_norm = F.normalize(target, dim=-1)
-        sim = (pre_norm * target_norm).sum(-1)
-        sim_att = (sim * target_att).sum(-1)
-        return sim_att
-
-    def forward_temporal(self, predict, target, t):
-        # pre_score = predict.reshape(self.bsz, self.t, -1).sum(-1)
-        pre_score = predict.sum(-1)
-        motion_score = target.sum(-1)
-        pre_norm = F.normalize(pre_score, dim=-1)
-        target_norm = F.normalize(motion_score, dim=-1)
-        sim = (pre_norm * target_norm).sum(-1)
-        return sim
-
-    def forward_spatial(self, predict, target, t):
-        # pre_norm = F.normalize(predict.reshape(self.bsz, self.t, -1).mean(1), dim=-1)
-        pre_norm = F.normalize(predict.mean(1), dim=-1)
-        target_norm = F.normalize(target.mean(1), dim=-1)
-        sim = (pre_norm * target_norm).sum(-1)
-        return sim
-
-    def forward(self, grad_map, motion_map):
-        loss_mal = 0.0
-        # misc.assert_shape(motion_map, [None, 3, 256, 256])
-        motion_shape = motion_map.shape
-        grad_shape = grad_map.shape
-        st_map = F.interpolate(motion_map, (grad_shape[-2], grad_shape[-1])).reshape(self.bsz, motion_shape[1], -1)
-        loss_l = self.alignment(grad_map, st_map)
-        loss_mal += loss_l
-        return loss_mal
-
-
-@persistence.persistent_class
-class TSA(torch.nn.Module):
-    def __init__(self, in_c):
-        super().__init__()
-
-        self.in_c = in_c
-        self.q_conv = nn.Conv3d(in_c, in_c // 8, 1, 1, 0)
-        self.k_conv = nn.Conv3d(in_c, in_c // 8, 1, 1, 0)
-        self.v_conv = nn.Conv3d(in_c, in_c, 1, 1, 0)
-        self.gamma = nn.Parameter(torch.zeros(1))
-        self.softmax = nn.Softmax(dim=2)
-
-    def forward(self, x):
-        b, c, h, w = x.shape
-        t = 3 if x.shape[0] % 3 == 0 else 1
-        b = b // t
-        x = x.reshape(-1, t, c, h, w).permute(0, 2, 1, 3, 4)  # b,c,t,h,w
-        key = self.k_conv(x).transpose(2, 1).reshape(b * h * w, -1, t)  # b,h,w,c,t
-        query = self.q_conv(x).transpose(2, 1).reshape(b * h * w, -1, t).transpose(2, 1)
-        value = self.v_conv(x).transpose(2, 1).reshape(b * h * w, -1, t).transpose(2, 1)
-        scores = torch.matmul(query, key)
-
-        attention = self.softmax(scores)
-        out = torch.matmul(attention, value)
-        out = out.reshape(b, h, w, -1, t).permute(0, 3, 4, 1, 2)  # b,c,t,h,w
-        out = self.gamma * out + x
-        out = out.permute(0, 2, 1, 3, 4).reshape(-1, c, h, w)  # bt,c,h,w
-
-        return out
-
-def add_mask(img, mask_size):
-    pad_size = mask_size
-    image_size = img.shape[-1]
-    base_size = image_size - pad_size*2
-    pad_up = torch.zeros([1, 3, pad_size, image_size]).to(img.device)
-    pad_down = torch.zeros([1, 3, pad_size, image_size]).to(img.device)
-    pad_left = torch.zeros([1, 3, image_size - pad_size*2, pad_size]).to(img.device)
-    pad_right = torch.zeros([1, 3, image_size - pad_size*2, pad_size]).to(img.device)
-    base = torch.ones(1, 3, base_size, base_size).to(img.device)
-    mask = torch.cat([pad_left, base, pad_right], dim=3).to(img.device)
-    mask = torch.cat([pad_up, mask, pad_down], dim=2).to(img.device).to(img.dtype)
-    mask = torch.cat(img.shape[0] * [mask])
-    return img + mask

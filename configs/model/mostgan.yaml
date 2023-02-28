@@ -8,14 +8,11 @@ generator:
   w_dim: 512
   z_dim: 512
 
-  style_z: true # enable original style
-  word_mod: false # enable word style modulation
-  motion_num: 8 # how many words
+  style_z: true 
+  word_mod: true
+  motion_num: 8
   motion_dim: 128
-  consistent_motion: false
-  mod_layers: 16,32,64,128 # which layer use word modulation
-  use_attention: 0, # which layer use temporal self attention
-  convT: false
+  mod_layers: 16,32,64,128
   rank: 1
 
   # Motion mapping network hyperparameters
@@ -64,20 +61,15 @@ discriminator:
   beta: 0.5 # foreground ratio
   spectral_norm: false
   motion_dim: ${model.generator.motion_dim}
-  dis_attn: false
   motion_diff: true
 
 loss_kwargs:
   style_mixing_prob: 0.0
   pl_weight: 0.0
-  align_loss: false
-  motion_loss: false
-  gradcam: false
   r1_gamma: 10.0
   # diffaugment: color,translation,cutout
   # Apply the same augmentation to all the frames of a video
   # In our early experiments, the quality dropped a lot when disabling it
   video_consistent_aug: true
-  regularizer: false
   diff_aug: false
   sim: 0.0

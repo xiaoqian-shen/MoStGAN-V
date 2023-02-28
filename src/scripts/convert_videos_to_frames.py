@@ -94,12 +94,13 @@ if __name__ == "__main__":
     parser.add_argument('--compute_fps_only', action='store_true', help='Should we just compute fps?')
     args = parser.parse_args()
 
-    convert_videos_to_frames(
-        source_dir=args.source_dir,
-        target_dir=args.target_dir,
-        target_size=args.target_size,
-        force_fps=args.force_fps,
-        num_workers=args.num_workers,
-        video_ext=args.video_ext,
-        compute_fps_only=args.compute_fps_only,
-    )
+    for cp in listdir_full_paths(args.source_dir):
+        convert_videos_to_frames(
+            source_dir=cp,
+            target_dir=args.target_dir,
+            target_size=args.target_size,
+            force_fps=args.force_fps,
+            num_workers=args.num_workers,
+            video_ext=args.video_ext,
+            compute_fps_only=args.compute_fps_only,
+        )

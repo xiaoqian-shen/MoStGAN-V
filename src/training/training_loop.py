@@ -174,20 +174,6 @@ def training_loop(
         device)  # subclass of torch.nn.Module
     G_ema = copy.deepcopy(G).eval()
 
-    if cfg.model.discriminator.softmask:
-        FA_kwargs = dnnlib.EasyDict(
-            class_name=f'training.networks.FAME', beta=cfg.model.discriminator.beta)
-        softmask = dnnlib.util.construct_class_by_name(**FA_kwargs).train().requires_grad_(False).to(device)
-    else:
-        softmask = None
-
-    if cfg.model.loss_kwargs.get('align_loss', False):
-        MAL_kwargs = dnnlib.EasyDict(
-            class_name=f'training.networks.MAL', batch_size=cfg.training.batch_size//cfg.num_gpus)
-        mal = dnnlib.util.construct_class_by_name(**MAL_kwargs).train().requires_grad_(False).to(device)
-    else:
-        mal = None
-
     # Resume from existing pickle.
     if (resume_pkl is not None):
         if rank == 0:
@@ -242,8 +228,6 @@ def training_loop(
         ('G_mapping', G.mapping),
         ('G_synthesis', G.synthesis),
         ('D', D),
-        ('softmask', softmask),
-        ('MAL', mal),
         (None, G_ema),
         ('augment_pipe', augment_pipe),
     ]
@@ -371,8 +355,6 @@ def training_loop(
             phase_real_img = (phase_real_img.to(device).to(torch.float32) / 127.5 - 1).split(batch_gpu)
             phase_real_c = phase_real_c.to(device).split(batch_gpu)  # [batch_gpu, batch_size, c_dim]
             phase_real_t = phase_real_t.to(device).split(batch_gpu)  # [batch_gpu, batch_size, c_dim]
-            motion_map = batch['st_map'].to(device).to(torch.float32).split(batch_gpu)
-            mask = batch['mask'].to(device).to(torch.float32).split(batch_gpu)
             all_gen_z = torch.randn([len(phases) * batch_size, G.z_dim], device=device)
             all_gen_z = [phase_gen_z.split(batch_gpu) for phase_gen_z in all_gen_z.split(batch_size)]
             gen_cond_sample_idx = [np.random.randint(len(training_set)) for _ in range(len(phases) * batch_size)]
@@ -400,8 +382,8 @@ def training_loop(
             phase.module.train()
 
             # Accumulate gradients over multiple rounds.
-            curr_data = zip(phase_real_img, phase_real_c, phase_real_t, motion_map, mask, phase_gen_z, phase_gen_c, phase_gen_t)
-            for round_idx, (real_img, real_c, real_t, motion_map, mask, gen_z, gen_c, gen_t) in enumerate(curr_data):
+            curr_data = zip(phase_real_img, phase_real_c, phase_real_t, phase_gen_z, phase_gen_c, phase_gen_t)
+            for round_idx, (real_img, real_c, real_t, gen_z, gen_c, gen_t) in enumerate(curr_data):
                 sync = (round_idx == batch_size // (batch_gpu * num_gpus) - 1)
                 gain = phase.interval
 
@@ -410,8 +392,6 @@ def training_loop(
                     real_img=real_img,
                     real_c=real_c,
                     real_t=real_t,
-                    motion_map=motion_map,
-                    mask=mask,
                     gen_z=gen_z,
                     gen_c=gen_c,
                     gen_t=gen_t,

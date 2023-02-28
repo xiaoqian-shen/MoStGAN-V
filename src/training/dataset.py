@@ -335,9 +335,7 @@ class VideoFramesFolderDataset(Dataset):
 
         self._video_idx2frames = [frames for frames in self._video_dir2frames.values()]
 
-        # load offline motion map
         self.cfg = cfg
-        self.motion_path = f'/ibex/scratch/shenx/video/data/{name}'
 
         if len(self._video_idx2frames) == 0:
             raise IOError('No videos found in the specified archive')
@@ -423,27 +421,6 @@ class VideoFramesFolderDataset(Dataset):
         else:
             frames_idx = None
 
-        if self.cfg.motion_map:
-            # spatial_temporal motion map [T, H, W] for each video
-            video_name = self._video_idx2frames[self._raw_idx[idx]][0].split('/')[-2]
-            file = f'{self.motion_path}/{video_name}/motion_map.npy'
-            try:
-                st_map = np.load(file, allow_pickle=True)
-            except:
-                st_map = np.ones([3,256,256])
-        else:
-            st_map = np.ones([1,1,1]) # no meaning
-        
-        if self.cfg.mask:
-            video_name = self._video_idx2frames[self._raw_idx[idx]][0].split('/')[-2]
-            file = f'{self.motion_path}/{video_name}/mask.npy'
-            try:
-                mask = np.load(file, allow_pickle=True)
-            except:
-                mask = np.ones([256,256])
-        else:
-            mask = np.ones([1,1]) # no meaning
-
         
         frames, times = self._load_raw_frames(self._raw_idx[idx], frames_idx=frames_idx)
 
@@ -455,19 +432,12 @@ class VideoFramesFolderDataset(Dataset):
         if self._xflip[idx]:
             assert frames.ndim == 4  # TCHW
             frames = frames[:, :, :, ::-1]
-            if st_map is not None:
-                assert st_map.ndim == 3  # THW
-                st_map = st_map[:, :, ::-1]
-            if mask is not None:
-                mask = mask[:, ::-1]
 
         return {
             'image': frames.copy(),
             'label': self.get_label(idx),
             'times': times,
             'video_len': self.get_video_len(idx),
-            'st_map': st_map.copy(),
-            'mask': mask.copy(),
         }
 
     def get_video_len(self, idx: int) -> int:

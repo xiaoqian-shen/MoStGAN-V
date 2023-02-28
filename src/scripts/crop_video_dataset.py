@@ -53,7 +53,7 @@ def listdir_full_paths(d) -> List[os.PathLike]:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Crops a video dataset temporally into several frames')
-    parser.add_argument('source_dir', type=str, help='Path to the dataset')
+    parser.add_argument('--source_dir', type=str, help='Path to the dataset')
     parser.add_argument('-n', '--max_num_frames', type=int, default=None, help='Number of frames to preserve')
     parser.add_argument('--slice_n_left_frames', type=int, default=0, help='Number of frames to slice from the left')
     parser.add_argument('--resize', type=int, default=None, help='Should we resize the dataset')
