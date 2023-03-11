@@ -4,6 +4,8 @@ Official PyTorch implementation of MoStGAN: Video Generation with Temporal Motio
 
 [[paper]]() [[project page]](https://xiaoqian-shen-projects.on.drv.tw/webpage/mostgan/)
 
+<video src="assets/demo.mp4" width="640" height="360"></video>
+
 ## Installation
 
 ```
