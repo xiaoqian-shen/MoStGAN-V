@@ -6,14 +6,14 @@ Official PyTorch implementation of MoStGAN: Video Generation with Temporal Motio
 
 <div style="display: flex; flex-direction: row;">
   <div style="flex: 1;">
-    <img src="assets/ffs.gif" alt="First GIF" style="width: 100pt;">
-    <img src="assets/celebv.gif" alt="Second GIF" style="width: 100pt;">
+    <img src="assets/ffs.gif" alt="First GIF" style="width: 300pt;">
+    <img src="assets/celebv.gif" alt="Second GIF" style="width: 300pt;">
   </div>
 </div>
 <div style="display: flex; flex-direction: row;">
   <div style="flex: 1;">
-    <img src="assets/jelly.gif" alt="First GIF" style="width: 100pt;">
-    <img src="assets/sky.gif" alt="Second GIF" style="width: 100pt;">
+    <img src="assets/jelly.gif" alt="First GIF" style="width: 300pt;">
+    <img src="assets/sky.gif" alt="Second GIF" style="width: 300pt;">
   </div>
 </div>
 
