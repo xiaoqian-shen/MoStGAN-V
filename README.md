@@ -4,10 +4,22 @@ Official PyTorch implementation of MoStGAN: Video Generation with Temporal Motio
 
 [[paper]]() [[project page]](https://xiaoqian-shen-projects.on.drv.tw/webpage/mostgan/)
 
-<div style="text-align:left">
-<img src="https://mostgan.s3.us-east-2.amazonaws.com/output.gif" alt='None'>
+<div style="display: flex; flex-direction: row;">
+  <div style="flex: 1;">
+    <img src="assets/ffs.gif" alt="First GIF" style="width: 100%;">
+  </div>
+  <div style="flex: 1;">
+    <img src="assets/celebv.gif" alt="Second GIF" style="width: 100%;">
+  </div>
 </div>
-
+<div style="display: flex; flex-direction: row;">
+  <div style="flex: 1;">
+    <img src="assets/jelly.gif" alt="First GIF" style="width: 100%;">
+  </div>
+  <div style="flex: 1;">
+    <img src="assets/sky.gif" alt="Second GIF" style="width: 100%;">
+  </div>
+</div>
 ## Installation
 
 ```
