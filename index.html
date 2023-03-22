@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <!-- Meta tags for social media banners, these should be filled in appropriatly as they are your "business card" -->
+    <!-- Replace the content tag with appropriate information -->
+    <meta name="description" content="DESCRIPTION META TAG">
+    <meta property="og:title" content="SOCIAL MEDIA TITLE TAG"/>
+    <meta property="og:description" content="SOCIAL MEDIA DESCRIPTION TAG TAG"/>
+    <meta property="og:url" content="URL OF THE WEBSITE"/>
+    <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X630-->
+    <meta property="og:image" content="static/image/your_banner_image.png"/>
+    <meta property="og:image:width" content="1200"/>
+    <meta property="og:image:height" content="630"/>
+
+
+    <meta name="twitter:title" content="TWITTER BANNER TITLE META TAG">
+    <meta name="twitter:description" content="TWITTER BANNER DESCRIPTION META TAG">
+    <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X600-->
+    <meta name="twitter:image" content="static/images/your_twitter_banner_image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <!-- Keywords for your paper to be indexed by-->
+    <meta name="keywords" content="KEYWORDS SHOULD BE PLACED HERE">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+    <title>MoStGAN: Video Generation with Temporal Motion Styles</title>
+    <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+          rel="stylesheet">
+
+    <link rel="stylesheet" href="static/css/bulma.min.css">
+    <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+    <link rel="stylesheet" href="static/css/index.css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://documentcloud.adobe.com/view-sdk/main.js"></script>
+    <script defer src="static/js/fontawesome.all.min.js"></script>
+    <script src="static/js/bulma-carousel.min.js"></script>
+    <script src="static/js/bulma-slider.min.js"></script>
+    <script src="static/js/index.js"></script>
+</head>
+<body>
+
+
+<section class="hero">
+    <div class="hero-body">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered">
+                <div class="column has-text-centered">
+                    <h1 class="title is-1 publication-title">MoStGAN: Video Generation with Temporal Motion Styles</h1>
+                    <div class="is-size-5 publication-authors">
+                        <!-- Paper authors -->
+                        <span class="author-block">
+                <a href="https://xiaoqian-shen.github.io" target="_blank">Xiaoqian Shen</a>,</span>
+                        <span class="author-block">
+                  <a href="https://xiangli.ac.cn" target="_blank">Xiang Li</a>,</span>
+                        <span class="author-block">
+                    <a href="http://www.mohamed-elhoseiny.com/home" target="_blank">Mohamed Elhoseiny</a>
+                  </span>
+                    </div>
+
+                    <div class="is-size-5 publication-authors">
+                    <span class="author-block">King Abdullah University of Science and Technology (KAUST), Saudi Arabia<br>Accepted by CVPR 2023
+                    </span>
+                        <!--                    <span class="eql-cntrb"><small><br><sup>*</sup>Indicates Equal Contribution</small></span>-->
+                    </div>
+
+                    <div class="column has-text-centered">
+                        <div class="publication-links">
+                            <!-- Arxiv PDF link -->
+                            <span class="link-block">
+                        <a href="https://openreview.net/forum?id=bWTAit-rvxw" target="_blank"
+                           class="external-link button is-normal is-rounded is-dark">
+                        <span class="icon">
+                          <i class="fas fa-file-pdf"></i>
+                        </span>
+                        <span>Paper</span>
+                      </a>
+                    </span>
+
+                            <!-- Github link -->
+                            <span class="link-block">
+                    <a href="https://github.com/cvpr2023-MoStGAN/MoStGAN" target="_blank"
+                       class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="fab fa-github"></i>
+                    </span>
+                    <span>Code</span>
+                  </a>
+                </span>
+
+                            <span class="link-block">
+                      <a href="https://openreview.net/attachment?id=bWTAit-rvxw&name=supplementary_material" target="_blank"
+                         class="external-link button is-normal is-rounded is-dark">
+                      <span class="icon">
+                        <i class="fas fa-file-pdf"></i>
+                      </span>
+                      <span>Supplementary</span>
+                    </a>
+                  </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- Teaser video-->
+<section class="hero teaser">
+    <div class="container is-max-desktop">
+        <div class="hero-body">
+            <video poster="" id="tree" autoplay controls muted loop height="30%">
+                <!-- Your video here -->
+                <source src="static/videos/demo.m4v"
+                        type="video/mp4">
+            </video>
+        </div>
+    </div>
+</section>
+<!-- End teaser video -->
+
+<!-- Paper abstract -->
+<section class="section hero is-light">
+    <div class="container is-max-desktop">
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-four-fifths">
+                <h2 class="title is-3">Abstract</h2>
+                <div class="content has-text-justified">
+                    <p>
+                        Video generation remains a challenging task due to spatiotemporal complexity and the requirement
+                        of synthesizing diverse motions with temporal consistency. Previous works attempt to generate
+                        videos in arbitrary lengths either in an autoregressive manner or regarding time as a continuous
+                        signal. However, they struggle to synthesize detailed and diverse motions with temporal
+                        coherence and tend to generate repetitive scenes after a few time steps. In this work, we argue
+                        that a single time-agnostic latent vector of style-based generator is insufficient to model
+                        various and temporally-consistent motions. Hence, we introduce additional time-dependent motion
+                        styles to model diverse motion patterns. In addition, a <strong>Mo</strong>tion
+                        <strong>St</strong>yle <strong>Att</strong>ention modulation mechanism, dubbed as MoStAtt, is
+                        proposed to augment frames with vivid dynamics for each specific scale (i.e., layer), which
+                        assigns attention score for each motion style w.r.t deconvolution filter weights in the target
+                        synthesis layer and softly attends different motion styles for weight modulation. Experimental
+                        results show our model achieves state-of-the-art performance on four unconditional 256x256 video
+                        synthesis benchmarks trained with only 3 frames per clip and produces better qualitative results
+                        with respect to dynamic motions.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<!-- End paper abstract -->
+
+<section class="hero is-small">
+    <div class="container is-max-desktop">
+        <div class="hero-body">
+            <div class="container">
+                <img src="static/images/main.png" alt="MY ALT TEXT"/>
+                <h2 class="subtitle has-text-centered">
+                    Architrecture Overview
+                </h2>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="hero is-small is-light">
+    <div class="hero-body">
+        <div class="container">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title has-text-centered">
+                        CelebV-HQ 256x256
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/celeb-v/real.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        Real Videos
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/celeb-v/mocoganhd.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoCoGAN-HD
+                    </h2>
+                    <video width="1200" poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/celeb-v/digan.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        DIGAN
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/celeb-v/styleganv.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        StyleGAN-V
+                    </h2>
+
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/celeb-v/mostgan.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoStGAN (ours)
+                    </h2>
+                </div>
+            </div>
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title has-text-centered">
+                        FaceForensics 256x256
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/ffs/real.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        Real Videos
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/ffs/mocoganhd.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoCoGAN-HD
+                    </h2>
+                    <video width="1200" poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/ffs/digan.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        DIGAN
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/ffs/styleganv.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        StyleGAN-V
+                    </h2>
+
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/ffs/mostgan.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoStGAN (ours)
+                    </h2>
+                </div>
+            </div>
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title has-text-centered">
+                        SkyTimelapse 256x256
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/sky/real.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        Real Videos
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/sky/mocoganhd.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoCoGAN-HD
+                    </h2>
+                    <video width="1200" poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/sky/digan.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        DIGAN
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/sky/styleganv.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        StyleGAN-V
+                    </h2>
+
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/sky/mostgan.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoStGAN (ours)
+                    </h2>
+                </div>
+            </div>
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title has-text-centered">
+                        RainbowJelly 256x256
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/jelly/real.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        Real Videos
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/jelly/mocoganhd.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoCoGAN-HD
+                    </h2>
+                    <video width="1200" poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/jelly/digan.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        DIGAN
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/jelly/styleganv.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        StyleGAN-V
+                    </h2>
+
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/jelly/mostgan.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoStGAN (ours)
+                    </h2>
+                </div>
+            </div>
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title has-text-centered">
+                        Horseback 256x256
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/horse/real.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        Real Videos
+                    </h2>
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/horse/styleganv.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        StyleGAN-V
+                    </h2>
+
+                    <video poster="" id="tree" autoplay muted loop height="30%">
+                        <!-- Your video here -->
+                        <source src="static/videos/horse/ours.mp4" type="video/mp4">
+                    </video>
+                    <h2 class="subtitle has-text-centered">
+                        MoStGAN (ours)
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="hero is-small">
+    <div class="hero-body">
+        <div class="container is-max-desktop">
+            <h2 class="title has-text-centered">Diverse Videos</h2>
+            <div class="container">
+                <div class="columns is-centered has-text-centered">
+                    <div style="text-align: center;">
+                        <video width="485" id="tree" autoplay muted loop
+                               style="border: 1px solid black; border-radius: 1px;"
+                               preload="auto" src="static/videos/more/celebv.mp4" type="video/mp4">
+                        </video>
+                        <video width="485" id="tree" autoplay muted loop
+                               style="border: 1px solid black; border-radius: 1px;"
+                               preload="auto" src="static/videos/more/ffs.mp4" type="video/mp4">
+
+                        </video>
+                    </div>
+                    <div style="text-align: center;">
+                        <video width="485" id="tree" autoplay muted loop
+                               style="border: 1px solid black; border-radius: 1px;"
+                               preload="auto" src="static/videos/more/jelly.mp4" type="video/mp4">
+                        </video>
+                        <video width="485" id="ttree" autoplay muted loop
+                               style="border: 1px solid black; border-radius: 1px;"
+                               preload="auto" src="static/videos/more/sky.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- Youtube video -->
+<!--<section class="hero is-small is-light">-->
+<!--    <div class="hero-body">-->
+<!--        <div class="container">-->
+<!--            &lt;!&ndash; Paper video. &ndash;&gt;-->
+<!--            <h2 class="title has-text-centered">Video Presentation</h2>-->
+<!--            <div class="columns is-centered has-text-centered">-->
+<!--                <div class="column is-four-fifths">-->
+
+<!--                    <div class="publication-video">-->
+<!--                        &lt;!&ndash; Youtube embed code here &ndash;&gt;-->
+<!--                        <iframe src="https://www.youtube.com/embed/JkaxUblCGz0" frameborder="0"-->
+<!--                                allow="autoplay; encrypted-media" allowfullscreen></iframe>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </div>-->
+<!--</section>-->
+<!-- End youtube video -->
+
+<!-- Paper poster -->
+<!--<section class="hero is-small is-light">-->
+<!--    <div class="hero-body">-->
+<!--        <div class="container">-->
+<!--            <h2 class="title has-text-centered">Poster</h2>-->
+<!--            <iframe src="static/pdf/poster.pdf" width="100%" height="750">-->
+<!--            </iframe>-->
+
+<!--        </div>-->
+<!--    </div>-->
+<!--</section>-->
+<!--End paper poster -->
+
+
+<!--BibTex citation -->
+<section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+        <h2 class="title">BibTeX</h2>
+        <pre><code>BibTex Code Here</code></pre>
+    </div>
+</section>
+<!--End BibTex citation -->
+
+
+<footer class="footer">
+    <div class="container">
+        <div class="columns is-centered">
+            <div class="column is-8">
+                <div class="content">
+
+                    <p>
+                        &copy;&nbsp;<a
+                            href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic
+                        Project Page Template</a>
+                    </p>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Statcounter tracking code -->
+
+<!-- You can add a tracker to track page visits by creating an account at statcounter.com -->
+
+<!-- End of Statcounter Code -->
+
+</body>
+</html>
