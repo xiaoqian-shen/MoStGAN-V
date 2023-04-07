@@ -2,7 +2,7 @@
 
 Official PyTorch implementation of MoStGAN-V: Video Generation with Temporal Motion Styles
 
-[[paper]]() [[project page]](https://xiaoqian-shen-projects.on.drv.tw/webpage/mostgan/)
+[[paper]]() [[project page]](https://xiaoqian-shen.github.io/MoStGAN-V/)
 
 <div style="display: flex; flex-direction: row;">
   <div style="flex: 1;">
