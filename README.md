@@ -67,6 +67,7 @@ src/scripts/calc_metrics.py
 ```
 python src/scripts/generate.py --network_pkl /path/to/network-snapshot.pkl --num_videos 25 --as_grids true --save_as_mp4 true --fps 25 --video_len 128 --batch_size 25 --outdir /path/to/output/dir --truncation_psi 0.9
 ```
+You can find the checkpoints from [here](https://drive.google.com/drive/folders/1ZlGmjRmjV4_ZzcU2t2RN0RdvFfeTniAW?usp=sharing)
 
 ## Reference
 
