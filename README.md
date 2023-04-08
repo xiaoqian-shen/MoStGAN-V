@@ -76,4 +76,11 @@ This code is mainly built upon [StyleGAN2-ADA](https://github.com/NVlabs/stylega
 Baseline codes are from [MoCoGAN-HD](https://github.com/snap-research/MoCoGAN-HD), [VideoGPT](https://github.com/wilson1yan/VideoGPT), [DIGAN](https://github.com/sihyun-yu/digan), [StyleGAN-V](https://github.com/universome/stylegan-v)
 
 ## Bibtex
-
+```
+@article{shen2023mostganv,
+  author    = {Xiaoqian Shen and Xiang Li and Mohamed Elhoseiny},
+  title     = {MoStGAN-V: Video Generation with Temporal Motion Styles},
+  journal   = {arXiv preprint arXiv:2304.02777},
+  year      = {2023},
+}
+```
