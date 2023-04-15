@@ -1,8 +1,12 @@
 # MoStGAN-V: Video Generation with Temporal Motion Styles
 
-Official PyTorch implementation of MoStGAN-V: Video Generation with Temporal Motion Styles
+Official PyTorch implementation for the paper:
 
-[[paper]]() [[project page]](https://xiaoqian-shen.github.io/MoStGAN-V/)
+> **MoStGAN-V: Video Generation with Temporal Motion Styles**, ***CVPR 2023***.
+>
+> Xiaoqian Shen, Xiang Li, Mohamed Elhoseiny
+>
+> <a href='https://arxiv.org/abs/2304.02777'><img src='https://img.shields.io/badge/arXiv-2304.02777-red'></a> <a href='https://xiaoqian-shen.github.io/MoStGAN-V'><img src='https://img.shields.io/badge/Project-Video-Blue'></a>
 
 <div style="display: flex; flex-direction: row;">
   <div style="flex: 1;">
