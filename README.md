@@ -1,4 +1,4 @@
-# MoStGAN-V: Video Generation with Temporal Motion Styles
+# MoStGAN-V
 
 Official PyTorch implementation for the paper:
 
